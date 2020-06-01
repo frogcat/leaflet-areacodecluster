@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>leaflet-areacodecluster-japan</title>
+  <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-hash@0.2.1/leaflet-hash.js"></script>
+  <script src="../dist/leaflet-areacodecluster-japan.min.js"></script>
+</head>
+
+<body>
+  <div id="map" style="position:absolute;top:0;left:0;bottom:0;right:0;"></div>
+  <script>
+    const map = L.map("map", L.extend({
+      zoom: 5,
+      center: [35.871, 138.51610]
+    }, L.Hash.parseHash(location.hash)));
+    L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
+      attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>"
+    }).addTo(map);
+
+    L.hash(map);
+
+    fetch("post-office-in-japan.json").then(a => a.json()).then(geojson => {
+      const markers = L.geoJson(geojson, {
+        pointToLayer: function(geoJsonPoint, latlng) {
+          const code = geoJsonPoint.properties.code;
+          const name = geoJsonPoint.properties.name;
+          return L.marker(latlng, {
+            areacode: code
+          }).bindTooltip(`${code}:${name}`);
+        }
+      }).getLayers();
+
+      L.areaCodeCluster.japan(markers).addTo(map);
+    });
+  </script>
+</body>
+
+</html>
