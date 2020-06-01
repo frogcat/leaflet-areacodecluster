@@ -5,6 +5,7 @@
   "main": "src/leaflet-areacodecluster.js",
   "scripts": {
     "build": "rollup -c",
+    "gh-pages": "rollup -c;mkdir -p public;cp -r -t public config dist example README.md",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
