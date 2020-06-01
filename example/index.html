@@ -26,7 +26,7 @@
     L.hash(map);
 
     Promise.all([
-      fetch("../areacode/japan.json").then(a => a.json()),
+      fetch("../config/japan.json").then(a => a.json()),
       fetch("post-office-in-japan.json").then(a => a.json()),
     ]).then(a => {
       const areaCodeDefinition = a[0];
