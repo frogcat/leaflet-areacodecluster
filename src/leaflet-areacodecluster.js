@@ -7,19 +7,28 @@
     initialize: function(json, markers, options) {
       this._areaCodeMap = {};
       this._areaCodeList = [];
-      const dig = f => {
-        f.markers = [];
-        f.points = [];
+      const dig = (j, parent) => {
+        const f = {
+          markers: [],
+          points: [],
+          children: []
+        };
+        if (j.label) f.label = j.label;
+        if (j.areaCode) f.areaCode = j.areaCode;
+        if (j.maxZoom) f.maxZoom = j.maxZoom;
+        if (parent) {
+          parent.children.push(f);
+          f.parent = parent;
+        }
         this._areaCodeList.push(f);
-        if (f.id) this._areaCodeMap[f.id] = f;
-        if (f.children) {
-          f.children.forEach(g => {
-            g.parent = f;
-            dig(g);
+        if (f.areaCode) this._areaCodeMap[f.areaCode] = f;
+        if (j.children) {
+          j.children.forEach(g => {
+            dig(g, f);
           });
         }
       };
-      dig(json);
+      dig(json, null);
 
       L.Util.setOptions(this, options);
       this._markers = [];
