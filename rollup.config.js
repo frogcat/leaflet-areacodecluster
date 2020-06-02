@@ -42,7 +42,7 @@ import areaCodeDefinition from '../config/${x}';
       file: `dist/leaflet-areacodecluster-${name}.js`,
       format: 'iife'
     }, {
-      file: `dist/leaflet-areacodecluster-japan.min.js`,
+      file: `dist/leaflet-areacodecluster-${name}.min.js`,
       format: 'iife',
       plugins: [terser()]
     }],
