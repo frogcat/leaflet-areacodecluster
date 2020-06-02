@@ -12,19 +12,28 @@
 
         this._areaCodeMap = {};
         this._areaCodeList = [];
-        var dig = function (f) {
-          f.markers = [];
-          f.points = [];
+        var dig = function (j, parent) {
+          var f = {
+            markers: [],
+            points: [],
+            children: []
+          };
+          if (j.label) { f.label = j.label; }
+          if (j.areaCode) { f.areaCode = j.areaCode; }
+          if (j.maxZoom) { f.maxZoom = j.maxZoom; }
+          if (parent) {
+            parent.children.push(f);
+            f.parent = parent;
+          }
           this$1._areaCodeList.push(f);
-          if (f.id) { this$1._areaCodeMap[f.id] = f; }
-          if (f.children) {
-            f.children.forEach(function (g) {
-              g.parent = f;
-              dig(g);
+          if (f.areaCode) { this$1._areaCodeMap[f.areaCode] = f; }
+          if (j.children) {
+            j.children.forEach(function (g) {
+              dig(g, f);
             });
           }
         };
-        dig(json);
+        dig(json, null);
 
         L.Util.setOptions(this, options);
         this._markers = [];
