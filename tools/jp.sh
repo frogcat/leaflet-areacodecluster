@@ -30,4 +30,4 @@ if [ ! -e $HOKKAIDO ]; then
   curl http://www.pref.hokkaido.lg.jp/gyosei/shicho/ -o $HOKKAIDO
 fi
 
-node japan.js $SAC $HOKKAIDO
+node jp.js $SAC $HOKKAIDO
