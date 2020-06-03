@@ -26,7 +26,11 @@
             f.parent = parent;
           }
           this$1._areaCodeList.push(f);
-          if (f.areaCode) { this$1._areaCodeMap[f.areaCode] = f; }
+          if (f.areaCode) {
+            (Array.isArray(f.areaCode) ? f.areaCode : [f.areaCode]).forEach(function (x) {
+              this$1._areaCodeMap[x] = f;
+            });
+          }
           if (j.children) {
             j.children.forEach(function (g) {
               dig(g, f);
