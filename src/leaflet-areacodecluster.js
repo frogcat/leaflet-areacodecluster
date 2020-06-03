@@ -21,7 +21,11 @@
           f.parent = parent;
         }
         this._areaCodeList.push(f);
-        if (f.areaCode) this._areaCodeMap[f.areaCode] = f;
+        if (f.areaCode) {
+          (Array.isArray(f.areaCode) ? f.areaCode : [f.areaCode]).forEach(x => {
+            this._areaCodeMap[x] = f;
+          });
+        }
         if (j.children) {
           j.children.forEach(g => {
             dig(g, f);
