@@ -5,7 +5,27 @@
 
     L.AreaCodeCluster = L.FeatureGroup.extend({
       options: {
-        pad: 0
+        showCoverageOnHover: true,
+        zoomToBoundsOnClick: true,
+        removeOutsideVisibleBounds: true,
+        iconCreateFunction: function(cluster) {
+          var childCount = cluster.getChildCount();
+
+          var c = ' marker-cluster-';
+          if (childCount < 10) {
+            c += 'small';
+          } else if (childCount < 100) {
+            c += 'medium';
+          } else {
+            c += 'large';
+          }
+
+          return L.divIcon({
+            html: '<div><span>' + childCount + '</span></div>',
+            className: 'marker-cluster' + c,
+            iconSize: L.point(40, 40)
+          });
+        }
       },
       initialize: function(json, markers, options) {
         var this$1 = this;
@@ -89,17 +109,25 @@
         var this$1 = this;
 
         if (!this._map) { return; }
-        var bounds = this._map.getBounds().pad(this.options.pad);
-        this._markers.forEach(function (marker) {
-          if (bounds.contains(marker.getLatLng())) {
+        if (this.options.removeOutsideVisibleBounds) {
+          var bounds = this._map.getBounds();
+          this._markers.forEach(function (marker) {
+            if (bounds.contains(marker.getLatLng())) {
+              if (!this$1.hasLayer(marker)) { this$1.addLayer(marker); }
+            } else {
+              if (this$1.hasLayer(marker)) { this$1.removeLayer(marker); }
+            }
+          });
+        } else {
+          this._markers.forEach(function (marker) {
             if (!this$1.hasLayer(marker)) { this$1.addLayer(marker); }
-          } else {
-            if (this$1.hasLayer(marker)) { this$1.removeLayer(marker); }
-          }
-        });
+          });
+        }
       },
 
       refresh: function() {
+        var this$1 = this;
+
 
         if (!this._map) { return; }
 
@@ -113,23 +141,15 @@
           } else {
             if (g.count === 0) { return; }
 
-            var className = 'marker-cluster-';
-            if (g.count < 10) {
-              className += 'small';
-            } else if (g.count < 100) {
-              className += 'medium';
-            } else {
-              className += 'large';
-            }
             var marker = L.marker(g.point, {
-              icon: L.divIcon({
-                html: '<div><span>' + g.count + '</span></div>',
-                className: 'marker-cluster ' + className,
-                iconSize: L.point(40, 40)
+              icon: this$1.options.iconCreateFunction({
+                getChildCount: function() {
+                  return g.count;
+                }
               })
             });
 
-            if (g.count > 1) {
+            if (this$1.options.showCoverageOnHover && g.count > 1) {
               marker.rectangle = L.rectangle(g.points);
               marker.on("mouseover", function() {
                 this._map.addLayer(marker.rectangle);
@@ -138,9 +158,11 @@
                 this._map.removeLayer(marker.rectangle);
               });
             }
-            marker.on("click", function() {
-              this._map.setView(marker.getLatLng(), g.maxZoom + 1);
-            });
+            if (this$1.options.zoomToBoundsOnClick) {
+              marker.on("click", function() {
+                this._map.setView(marker.getLatLng(), g.maxZoom + 1);
+              });
+            }
 
             var label = (g.id || "") + (g.label || "");
             if (label.length > 0) { marker.bindTooltip(label); }
