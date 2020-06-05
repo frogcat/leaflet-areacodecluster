@@ -2,7 +2,27 @@
 
   L.AreaCodeCluster = L.FeatureGroup.extend({
     options: {
-      pad: 0
+      showCoverageOnHover: true,
+      zoomToBoundsOnClick: true,
+      removeOutsideVisibleBounds: true,
+      iconCreateFunction: function(cluster) {
+        var childCount = cluster.getChildCount();
+
+        var c = ' marker-cluster-';
+        if (childCount < 10) {
+          c += 'small';
+        } else if (childCount < 100) {
+          c += 'medium';
+        } else {
+          c += 'large';
+        }
+
+        return L.divIcon({
+          html: '<div><span>' + childCount + '</span></div>',
+          className: 'marker-cluster' + c,
+          iconSize: L.point(40, 40)
+        });
+      }
     },
     initialize: function(json, markers, options) {
       this._areaCodeMap = {};
@@ -82,14 +102,20 @@
     },
     update: function() {
       if (!this._map) return;
-      const bounds = this._map.getBounds().pad(this.options.pad);
-      this._markers.forEach(marker => {
-        if (bounds.contains(marker.getLatLng())) {
+      if (this.options.removeOutsideVisibleBounds) {
+        const bounds = this._map.getBounds();
+        this._markers.forEach(marker => {
+          if (bounds.contains(marker.getLatLng())) {
+            if (!this.hasLayer(marker)) this.addLayer(marker);
+          } else {
+            if (this.hasLayer(marker)) this.removeLayer(marker);
+          }
+        });
+      } else {
+        this._markers.forEach(marker => {
           if (!this.hasLayer(marker)) this.addLayer(marker);
-        } else {
-          if (this.hasLayer(marker)) this.removeLayer(marker);
-        }
-      });
+        });
+      }
     },
 
     refresh: function() {
@@ -106,23 +132,15 @@
         } else {
           if (g.count === 0) return;
 
-          let className = 'marker-cluster-';
-          if (g.count < 10) {
-            className += 'small';
-          } else if (g.count < 100) {
-            className += 'medium';
-          } else {
-            className += 'large';
-          }
           const marker = L.marker(g.point, {
-            icon: L.divIcon({
-              html: '<div><span>' + g.count + '</span></div>',
-              className: 'marker-cluster ' + className,
-              iconSize: L.point(40, 40)
+            icon: this.options.iconCreateFunction({
+              getChildCount: function() {
+                return g.count;
+              }
             })
           });
 
-          if (g.count > 1) {
+          if (this.options.showCoverageOnHover && g.count > 1) {
             marker.rectangle = L.rectangle(g.points);
             marker.on("mouseover", function() {
               this._map.addLayer(marker.rectangle);
@@ -131,9 +149,11 @@
               this._map.removeLayer(marker.rectangle);
             });
           }
-          marker.on("click", function() {
-            this._map.setView(marker.getLatLng(), g.maxZoom + 1);
-          });
+          if (this.options.zoomToBoundsOnClick) {
+            marker.on("click", function() {
+              this._map.setView(marker.getLatLng(), g.maxZoom + 1);
+            });
+          }
 
           const label = (g.id || "") + (g.label || "");
           if (label.length > 0) marker.bindTooltip(label);
