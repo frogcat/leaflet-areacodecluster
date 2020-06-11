@@ -5,7 +5,7 @@
   "main": "src/leaflet-areacodecluster.js",
   "scripts": {
     "build": "rollup -c",
-    "gh-pages": "rollup -c;mkdir -p public;cp -r -t public config dist example README.md",
+    "gh-pages": "rollup -c;mkdir -p public;cp -r -t public dist example README.md",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -25,7 +25,6 @@
   "homepage": "https://github.com/frogcat/leaflet-areacodecluster#readme",
   "devDependencies": {
     "@rollup/plugin-buble": "^0.21.3",
-    "@rollup/plugin-json": "^4.0.3",
     "rollup": "^2.11.2",
     "rollup-plugin-terser": "^6.1.0"
   }

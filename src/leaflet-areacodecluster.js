@@ -1,173 +1,159 @@
-(function(L) {
+export default L.AreaCodeCluster = L.FeatureGroup.extend({
+  options: {
+    showCoverageOnHover: true,
+    zoomToBoundsOnClick: true,
+    removeOutsideVisibleBounds: true,
+    iconCreateFunction: null
+  },
+  initialize: function(resolver, markers, options) {
+    L.Util.setOptions(this, options);
 
-  L.AreaCodeCluster = L.FeatureGroup.extend({
-    options: {
-      showCoverageOnHover: true,
-      zoomToBoundsOnClick: true,
-      removeOutsideVisibleBounds: true,
-      iconCreateFunction: function(cluster) {
-        var childCount = cluster.getChildCount();
+    if (!this.options.iconCreateFunction) {
+      this.options.iconCreateFunction = this._defaultIconCreateFunction;
+    }
 
-        var c = ' marker-cluster-';
-        if (childCount < 10) {
-          c += 'small';
-        } else if (childCount < 100) {
-          c += 'medium';
+    this._resolver = resolver;
+    this._areacodeCluster = {};
+    this._markers = [];
+    if (markers)
+      markers.forEach(marker => {
+        this.addMarker(marker);
+      });
+    L.FeatureGroup.prototype.initialize.call(this, []);
+  },
+  addMarker: function(marker) {
+    let areacode = marker.options.areacode;
+    if (this._resolver.isValid(areacode)) {
+      if (this._areacodeCluster[areacode] === undefined) this._areacodeCluster[areacode] = [];
+      if (this._areacodeCluster[areacode].indexOf(marker) === -1) this._areacodeCluster[areacode].push(marker);
+    } else {
+      console.error("invalid areacode", areacode);
+    }
+  },
+  onAdd: function(map) {
+    this.refresh();
+  },
+  getEvents: function() {
+    return {
+      moveend: this.update,
+      zoomend: this.refresh,
+      viewreset: this.refresh,
+      zoomlevelschange: this.refresh
+    };
+  },
+  update: function() {
+    if (!this._map) return;
+    if (this.options.removeOutsideVisibleBounds) {
+      const bounds = this._map.getBounds();
+      this._markers.forEach(marker => {
+        if (bounds.contains(marker.getLatLng())) {
+          if (!this.hasLayer(marker)) this.addLayer(marker);
         } else {
-          c += 'large';
+          if (this.hasLayer(marker)) this.removeLayer(marker);
         }
+      });
+    } else {
+      this._markers.forEach(marker => {
+        if (!this.hasLayer(marker)) this.addLayer(marker);
+      });
+    }
+  },
 
-        return L.divIcon({
-          html: '<div><span>' + childCount + '</span></div>',
-          className: 'marker-cluster' + c,
-          iconSize: L.point(40, 40)
+  refresh: function() {
+
+    if (!this._map) return;
+
+    const zoom = this._map.getZoom();
+
+    this.clearLayers();
+    this._markers = [];
+
+    const cluster = {};
+    Object.keys(this._areacodeCluster).forEach(areacode => {
+      const markers = this._areacodeCluster[areacode];
+      const resolved = this._resolver.resolve(zoom, areacode);
+      if (!resolved || resolved.length === 0) {
+        Array.prototype.push.apply(this._markers, markers);
+      } else {
+        if (cluster[resolved] === undefined) cluster[resolved] = [];
+        Array.prototype.push.apply(cluster[resolved], markers);
+      }
+    });
+
+    Object.values(cluster).forEach(markers => {
+      const marker = this._createMarker(markers);
+      this._markers.push(marker);
+    });
+
+    this.update();
+  },
+
+  _defaultIconCreateFunction: function(cluster) {
+    const childCount = cluster.getChildCount();
+    let c = ' marker-cluster-';
+    if (childCount < 10) {
+      c += 'small';
+    } else if (childCount < 100) {
+      c += 'medium';
+    } else {
+      c += 'large';
+    }
+
+    return L.divIcon({
+      html: '<div><span>' + childCount + '</span></div>',
+      className: 'marker-cluster' + c,
+      iconSize: new L.Point(40, 40)
+    });
+  },
+
+  _createMarker: function(markers) {
+
+    const length = markers.length;
+    const points = markers.map(marker => marker.getLatLng());
+    const center = points.reduce((a, c) => L.latLng(a.lat + c.lat / length, a.lng + c.lng / length), L.latLng(0, 0));
+    const bounds = L.latLngBounds(points);
+
+    const marker = L.marker(center, {
+      icon: this.options.iconCreateFunction({
+        getChildCount: function() {
+          return markers.length;
+        },
+        getAllChildMarkers: function() {
+          return markers;
+        }
+      })
+    });
+
+    if (this.options.showCoverageOnHover) {
+      if (bounds.isValid()) {
+        marker._rectangle = L.rectangle(bounds);
+        marker.on("mouseover", function() {
+          this._map.addLayer(this._rectangle);
+        });
+        marker.on("mouseout remove", function() {
+          this._map.removeLayer(this._rectangle);
         });
       }
-    },
-    initialize: function(json, markers, options) {
-      this._areaCodeMap = {};
-      this._areaCodeList = [];
-      const dig = (j, parent) => {
-        const f = {
-          markers: [],
-          points: [],
-          children: []
-        };
-        if (j.label) f.label = j.label;
-        if (j.areaCode) f.areaCode = j.areaCode;
-        if (j.maxZoom) f.maxZoom = j.maxZoom;
-        if (parent) {
-          parent.children.push(f);
-          f.parent = parent;
-        }
-        this._areaCodeList.push(f);
-        if (f.areaCode) {
-          (Array.isArray(f.areaCode) ? f.areaCode : [f.areaCode]).forEach(x => {
-            this._areaCodeMap[x] = f;
-          });
-        }
-        if (j.children) {
-          j.children.forEach(g => {
-            dig(g, f);
-          });
-        }
-      };
-      dig(json, null);
+    }
 
-      L.Util.setOptions(this, options);
-      this._markers = [];
-      if (markers)
-        markers.forEach(marker => {
-          this.addMarker(marker);
-        });
-      L.FeatureGroup.prototype.initialize.call(this, []);
-    },
-    addMarker: function(marker) {
-      const areacode = marker.options.areacode;
-      if (this._areaCodeMap[areacode])
-        this._areaCodeMap[areacode].markers.push(marker);
-      else console.error(`${areacode} not found`, marker);
-    },
-    onAdd: function(map) {
-      this._areaCodeList.forEach(g => {
-        g.points = [];
-      });
-      this._areaCodeList.filter(g => g.markers.length > 0).forEach(g => {
-        const points = g.markers.map(m => m.getLatLng());
-        let focus = g;
-        while (focus) {
-          focus.points = focus.points.concat(points);
-          focus = focus.parent;
-        }
-      });
-      this._areaCodeList.forEach(g => {
-        g.count = g.points.length;
-        if (g.count > 0) {
-          g.point = L.latLng(0, 0);
-          g.points.forEach(p => {
-            g.point.lat += p.lat / g.count;
-            g.point.lng += p.lng / g.count;
-          });
-        }
-      });
-      this.refresh();
-    },
-    getEvents: function() {
-      return {
-        moveend: this.update,
-        zoomend: this.refresh,
-        viewreset: this.refresh,
-        zoomlevelschange: this.refresh
-      };
-    },
-    update: function() {
-      if (!this._map) return;
-      if (this.options.removeOutsideVisibleBounds) {
-        const bounds = this._map.getBounds();
-        this._markers.forEach(marker => {
-          if (bounds.contains(marker.getLatLng())) {
-            if (!this.hasLayer(marker)) this.addLayer(marker);
+    if (this.options.zoomToBoundsOnClick) {
+      if (bounds.isValid()) {
+        marker.on("click", function() {
+          const targetZoom = this._map._getBoundsCenterZoom(bounds).zoom;
+          const currentZoom = this._map.getZoom();
+          if (targetZoom <= currentZoom) {
+            this._map.setView(this.getLatLng(), currentZoom + 1);
           } else {
-            if (this.hasLayer(marker)) this.removeLayer(marker);
+            this._map.fitBounds(bounds);
           }
         });
       } else {
-        this._markers.forEach(marker => {
-          if (!this.hasLayer(marker)) this.addLayer(marker);
+        marker.on("click", function() {
+          this._map.setView(this.getLatLng(), this._map.getZoom() + 1);
         });
       }
-    },
-
-    refresh: function() {
-
-      if (!this._map) return;
-
-      const zoom = this._map.getZoom();
-
-      let markers = [];
-      const dig = g => {
-        if (g.maxZoom < zoom) {
-          markers = markers.concat(g.markers);
-          if (g.children) g.children.forEach(dig);
-        } else {
-          if (g.count === 0) return;
-
-          const marker = L.marker(g.point, {
-            icon: this.options.iconCreateFunction({
-              getChildCount: function() {
-                return g.count;
-              }
-            })
-          });
-
-          if (this.options.showCoverageOnHover && g.count > 1) {
-            marker.rectangle = L.rectangle(g.points);
-            marker.on("mouseover", function() {
-              this._map.addLayer(marker.rectangle);
-            });
-            marker.on("mouseout remove", function() {
-              this._map.removeLayer(marker.rectangle);
-            });
-          }
-          if (this.options.zoomToBoundsOnClick) {
-            marker.on("click", function() {
-              this._map.setView(marker.getLatLng(), g.maxZoom + 1);
-            });
-          }
-
-          const label = (g.id || "") + (g.label || "");
-          if (label.length > 0) marker.bindTooltip(label);
-          markers.push(marker);
-        }
-      };
-      this._areaCodeList.filter(f => f.parent === undefined).forEach(dig);
-      this.clearLayers();
-      this._markers = markers;
-      this.update();
     }
-  });
+    return marker;
+  }
 
-  L.areaCodeCluster = function(json, markers, options) {
-    return new L.AreaCodeCluster(json, markers, options);
-  };
-})(window.L);
+});
