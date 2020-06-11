@@ -2,7 +2,7 @@
   "name": "leaflet-areacodecluster",
   "version": "1.0.0",
   "description": "A leaflet plugin for marker clustering based on area code",
-  "main": "src/leaflet-areacodecluster.js",
+  "main": "dist/leaflet-areacodecluster.js",
   "scripts": {
     "build": "rollup -c",
     "gh-pages": "rollup -c;mkdir -p public;cp -r -t public dist example README.md",
