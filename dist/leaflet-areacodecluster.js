@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  function defaultClusterMarkerFactory(markers) {
+  function defaultClusterMarkerFactory(markers, areaCode) {
 
     var length = markers.length;
     var points = markers.map(function (marker) { return marker.getLatLng(); });
@@ -15,11 +15,15 @@
 
     var marker = L.marker(center, {
       icon: L.divIcon({
-        html: length.toString(),
+        html: ("<span>" + length + "</span>"),
         className: clazz.join(" "),
         iconSize: L.point(40, 40)
       })
     });
+
+    if (areaCode.length > 0) {
+      marker.bindTooltip(areaCode);
+    }
 
     if (bounds.isValid()) {
       marker._rectangle = L.rectangle(bounds);
@@ -133,8 +137,9 @@
         }
       });
 
-      Object.values(modifiedCluster).forEach(function (markers) {
-        this$1._markersForCurrentZoom.push(this$1.options.clusterMarkerFactory(markers));
+      Object.keys(modifiedCluster).forEach(function (areaCode) {
+        var markers = modifiedCluster[areaCode];
+        this$1._markersForCurrentZoom.push(this$1.options.clusterMarkerFactory(markers, areaCode));
       });
 
       this._onMoveEnd();
