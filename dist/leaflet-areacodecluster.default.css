@@ -1,0 +1,19 @@
+.area-code-cluster {
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  font: 12px "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+
+.area-code-cluster-large {
+  background: radial-gradient(circle closest-side, rgba(241, 128, 23, 0.8) 50%, rgba(0, 0, 0, 0) 100%);
+}
+
+.area-code-cluster-medium {
+  background: radial-gradient(circle closest-side, rgba(240, 194, 12, 0.8) 50%, rgba(0, 0, 0, 0) 100%);
+}
+
+.area-code-cluster-small {
+  background: radial-gradient(circle closest-side, rgba(110, 204, 57, 0.8) 50%, rgba(0, 0, 0, 0) 100%);
+}

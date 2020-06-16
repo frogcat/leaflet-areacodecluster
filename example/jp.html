@@ -6,7 +6,7 @@
   <title>leaflet-areacodecluster-japan</title>
   <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+  <link rel="stylesheet" href="../dist/leaflet-areacodecluster.default.css" />
   <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-hash@0.2.1/leaflet-hash.js"></script>
   <script src="../dist/leaflet-areacodecluster.min.js"></script>
@@ -31,12 +31,19 @@
           const code = geoJsonPoint.properties.code;
           const name = geoJsonPoint.properties.name;
           return L.marker(latlng, {
-            areacode: code
+            areaCode: code
           }).bindTooltip(`${code}:${name}`);
         }
       }).getLayers();
 
-      L.areaCodeCluster.jp(markers).addTo(map);
+      L.areaCodeCluster(markers, {
+        areaCodeModifier: function(zoom, areaCode) {
+          if (zoom <= 4) return "";
+          if (zoom <= 8) return areaCode.substring(0, 2);
+          if (zoom <= 12) return areaCode.substring(0, 5);
+          return null;
+        }
+      }).addTo(map);
     });
   </script>
 </body>

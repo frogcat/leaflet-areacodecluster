@@ -1,20 +1,15 @@
+import defaultClusterMarkerFactory from './default-cluster-marker-factory.js';
+import defaultAreaCodeModifier from './default-areacode-modifier.js';
+
 export default L.AreaCodeCluster = L.FeatureGroup.extend({
   options: {
-    showCoverageOnHover: true,
-    zoomToBoundsOnClick: true,
-    removeOutsideVisibleBounds: true,
-    iconCreateFunction: null
+    clusterMarkerFactory: defaultClusterMarkerFactory,
+    areaCodeModifier: defaultAreaCodeModifier
   },
-  initialize: function(resolver, markers, options) {
+  initialize: function(markers, options) {
     L.Util.setOptions(this, options);
-
-    if (!this.options.iconCreateFunction) {
-      this.options.iconCreateFunction = this._defaultIconCreateFunction;
-    }
-
-    this._resolver = resolver;
-    this._areacodeCluster = {};
-    this._markers = [];
+    this._sourceCluster = {};
+    this._markersForCurrentZoom = [];
     if (markers)
       markers.forEach(marker => {
         this.addMarker(marker);
@@ -22,138 +17,62 @@ export default L.AreaCodeCluster = L.FeatureGroup.extend({
     L.FeatureGroup.prototype.initialize.call(this, []);
   },
   addMarker: function(marker) {
-    let areacode = marker.options.areacode;
-    if (this._resolver.isValid(areacode)) {
-      if (this._areacodeCluster[areacode] === undefined) this._areacodeCluster[areacode] = [];
-      if (this._areacodeCluster[areacode].indexOf(marker) === -1) this._areacodeCluster[areacode].push(marker);
-    } else {
-      console.error("invalid areacode", areacode);
-    }
+    const areaCode = marker.options.areaCode;
+    const target = this._sourceCluster[areaCode] || (this._sourceCluster[areaCode] = []);
+    if (target.indexOf(marker) === -1) target.push(marker);
+  },
+  removeMarker: function(marker) {
+    Object.keys(this._sourceCluster).forEach(areaCode => {
+      this._sourceCluster[areaCode] = this._sourceCluster[areaCode].filter(x => x !== marker);
+    });
   },
   onAdd: function(map) {
-    this.refresh();
+    this._onZoomEnd();
   },
   getEvents: function() {
     return {
-      moveend: this.update,
-      zoomend: this.refresh,
-      viewreset: this.refresh,
-      zoomlevelschange: this.refresh
+      moveend: this._onMoveEnd,
+      zoomend: this._onZoomEnd,
+      viewreset: this._onZoomEnd,
+      zoomlevelschange: this._onZoomEnd
     };
   },
-  update: function() {
+  _onMoveEnd: function() {
     if (!this._map) return;
-    if (this.options.removeOutsideVisibleBounds) {
-      const bounds = this._map.getBounds();
-      this._markers.forEach(marker => {
-        if (bounds.contains(marker.getLatLng())) {
-          if (!this.hasLayer(marker)) this.addLayer(marker);
-        } else {
-          if (this.hasLayer(marker)) this.removeLayer(marker);
-        }
-      });
-    } else {
-      this._markers.forEach(marker => {
+    const bounds = this._map.getBounds();
+    this._markersForCurrentZoom.forEach(marker => {
+      if (bounds.contains(marker.getLatLng())) {
         if (!this.hasLayer(marker)) this.addLayer(marker);
-      });
-    }
+      } else {
+        if (this.hasLayer(marker)) this.removeLayer(marker);
+      }
+    });
   },
-
-  refresh: function() {
+  _onZoomEnd: function() {
 
     if (!this._map) return;
 
     const zoom = this._map.getZoom();
 
     this.clearLayers();
-    this._markers = [];
+    this._markersForCurrentZoom = [];
 
-    const cluster = {};
-    Object.keys(this._areacodeCluster).forEach(areacode => {
-      const markers = this._areacodeCluster[areacode];
-      const resolved = this._resolver.resolve(zoom, areacode);
-      if (!resolved || resolved.length === 0) {
-        Array.prototype.push.apply(this._markers, markers);
+    const modifiedCluster = {};
+    Object.keys(this._sourceCluster).forEach(areaCode => {
+      const markers = this._sourceCluster[areaCode];
+      const key = this.options.areaCodeModifier(zoom, areaCode);
+      if (key === null || key === false || key === undefined) {
+        Array.prototype.push.apply(this._markersForCurrentZoom, markers);
       } else {
-        if (cluster[resolved] === undefined) cluster[resolved] = [];
-        Array.prototype.push.apply(cluster[resolved], markers);
+        const target = modifiedCluster[key] || (modifiedCluster[key] = []);
+        Array.prototype.push.apply(target, markers);
       }
     });
 
-    Object.values(cluster).forEach(markers => {
-      const marker = this._createMarker(markers);
-      this._markers.push(marker);
+    Object.values(modifiedCluster).forEach(markers => {
+      this._markersForCurrentZoom.push(this.options.clusterMarkerFactory(markers));
     });
 
-    this.update();
-  },
-
-  _defaultIconCreateFunction: function(cluster) {
-    const childCount = cluster.getChildCount();
-    let c = ' marker-cluster-';
-    if (childCount < 10) {
-      c += 'small';
-    } else if (childCount < 100) {
-      c += 'medium';
-    } else {
-      c += 'large';
-    }
-
-    return L.divIcon({
-      html: '<div><span>' + childCount + '</span></div>',
-      className: 'marker-cluster' + c,
-      iconSize: new L.Point(40, 40)
-    });
-  },
-
-  _createMarker: function(markers) {
-
-    const length = markers.length;
-    const points = markers.map(marker => marker.getLatLng());
-    const center = points.reduce((a, c) => L.latLng(a.lat + c.lat / length, a.lng + c.lng / length), L.latLng(0, 0));
-    const bounds = L.latLngBounds(points);
-
-    const marker = L.marker(center, {
-      icon: this.options.iconCreateFunction({
-        getChildCount: function() {
-          return markers.length;
-        },
-        getAllChildMarkers: function() {
-          return markers;
-        }
-      })
-    });
-
-    if (this.options.showCoverageOnHover) {
-      if (bounds.isValid()) {
-        marker._rectangle = L.rectangle(bounds);
-        marker.on("mouseover", function() {
-          this._map.addLayer(this._rectangle);
-        });
-        marker.on("mouseout remove", function() {
-          this._map.removeLayer(this._rectangle);
-        });
-      }
-    }
-
-    if (this.options.zoomToBoundsOnClick) {
-      if (bounds.isValid()) {
-        marker.on("click", function() {
-          const targetZoom = this._map._getBoundsCenterZoom(bounds).zoom;
-          const currentZoom = this._map.getZoom();
-          if (targetZoom <= currentZoom) {
-            this._map.setView(this.getLatLng(), currentZoom + 1);
-          } else {
-            this._map.fitBounds(bounds);
-          }
-        });
-      } else {
-        marker.on("click", function() {
-          this._map.setView(this.getLatLng(), this._map.getZoom() + 1);
-        });
-      }
-    }
-    return marker;
+    this._onMoveEnd();
   }
-
 });
