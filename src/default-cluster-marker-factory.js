@@ -1,4 +1,4 @@
-export default function(markers) {
+export default function(markers, areaCode) {
 
   const length = markers.length;
   const points = markers.map(marker => marker.getLatLng());
@@ -12,11 +12,15 @@ export default function(markers) {
 
   const marker = L.marker(center, {
     icon: L.divIcon({
-      html: length.toString(),
+      html: `<span>${length}</span>`,
       className: clazz.join(" "),
       iconSize: L.point(40, 40)
     })
   });
+
+  if (areaCode.length > 0) {
+    marker.bindTooltip(areaCode);
+  }
 
   if (bounds.isValid()) {
     marker._rectangle = L.rectangle(bounds);

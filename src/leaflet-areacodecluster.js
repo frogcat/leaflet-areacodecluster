@@ -69,8 +69,9 @@ export default L.AreaCodeCluster = L.FeatureGroup.extend({
       }
     });
 
-    Object.values(modifiedCluster).forEach(markers => {
-      this._markersForCurrentZoom.push(this.options.clusterMarkerFactory(markers));
+    Object.keys(modifiedCluster).forEach(areaCode => {
+      const markers = modifiedCluster[areaCode];
+      this._markersForCurrentZoom.push(this.options.clusterMarkerFactory(markers, areaCode));
     });
 
     this._onMoveEnd();
