@@ -3,10 +3,10 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>leaflet-areacodecluster-world</title>
+  <title>leaflet-areacodecluster</title>
   <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+  <link rel="stylesheet" href="../dist/leaflet-areacodecluster.default.css" />
   <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
   <script src="../dist/leaflet-areacodecluster.min.js"></script>
 </head>
@@ -16,7 +16,8 @@
   <script>
     const map = L.map("map").setView([0, 0], 2);
     L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
-      attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>"
+      attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
+      preferCanvas: true
     }).addTo(map);
 
     fetch("airports.json").then(a => a.json()).then(geojson => {
@@ -25,12 +26,12 @@
           const code = geoJsonPoint.properties.areaCode;
           const name = geoJsonPoint.properties.label;
           return L.circleMarker(latlng, {
-            areacode: code
+            areaCode: code
           }).bindTooltip(`${code}:${name}`);
         }
       }).getLayers();
 
-      L.areaCodeCluster.world(markers).addTo(map);
+      L.areaCodeCluster(markers).addTo(map);
     });
   </script>
 </body>
