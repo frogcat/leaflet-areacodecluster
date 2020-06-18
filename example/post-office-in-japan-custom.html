@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Post office in japan clustered by prefecture, city and additional data</title>
+  <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+  <link rel="stylesheet" href="../dist/leaflet-areacodecluster.default.css" />
+  <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+  <script src="../dist/leaflet-areacodecluster.min.js"></script>
+</head>
+
+<body>
+  <div id="map" style="position:absolute;top:0;left:0;bottom:0;right:0;"></div>
+  <script>
+    const map = L.map("map", {
+      zoom: 5,
+      center: [35.871, 138.51610]
+    });
+    L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
+      attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>"
+    }).addTo(map);
+
+    map.attributionControl.addAttribution('<a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P30.html">「国土数値情報（郵便局データ）」（国土交通省）</a> を加工して作成');
+
+    fetch("post-office-in-japan.tsv").then(a => a.text()).then(tsv => {
+      const markers = tsv.trim().split("\n").map(row => row.split("\t")).map(col => {
+        const name = col[0];
+        const code = col[1];
+        const lat = col[2];
+        const lon = col[3];
+        return L.circleMarker([lat, lon], {
+          areaCode: code
+        }).bindTooltip(name);
+      });
+
+      const seirei = [
+        "01100", "04100", "11100", "12100", "13100", "14100",
+        "14130", "14150", "15100", "22100", "22300", "23100",
+        "26100", "27100", "27140", "28100", "33100", "34100",
+        "40100", "40130", "43100", "99999"
+      ];
+
+      L.areaCodeCluster(markers, {
+        areaCodeModifier: function(zoom, areaCode) {
+          if (areaCode.match(/^[0-9][0-9]1[0-9]*$/)) {
+            if (zoom <= 4) return "";
+            if (zoom <= 8) return areaCode.substring(0, 2);
+            if (zoom <= 10) return seirei.find((x, i) => x < areaCode && areaCode < seirei[i + 1]);
+            if (zoom <= 12) return areaCode.substring(0, 5);
+            return null;
+          } else {
+            if (zoom <= 4) return "";
+            if (zoom <= 8) return areaCode.substring(0, 2);
+            if (zoom <= 12) return areaCode.substring(0, 5);
+            return null;
+          }
+        }
+      }).addTo(map);
+    });
+  </script>
+</body>
+
+</html>

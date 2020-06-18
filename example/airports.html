@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Airports clustered by country</title>
+  <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+  <link rel="stylesheet" href="../dist/leaflet-areacodecluster.default.css" />
+  <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+  <script src="../dist/leaflet-areacodecluster.min.js"></script>
+</head>
+
+<body>
+  <div id="map" style="position:absolute;top:0;left:0;bottom:0;right:0;"></div>
+  <script>
+    const map = L.map("map", {
+      zoom: 2,
+      center: [0, 0],
+      preferCanvas: true
+    });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    map.attributionControl.addAttribution('<a href="https://github.com/mwgg/Airports">Airports by mwgg</a>');
+
+    fetch("airports.tsv").then(a => a.text()).then(tsv => {
+      const markers = tsv.trim().split("\n").map(row => row.split("\t")).map(col => {
+        const icao = col[0];
+        const name = col[1];
+        const city = col[2];
+        const state = col[3];
+        const country = col[4];
+        const lat = col[5];
+        const lon = col[6];
+        return L.circleMarker([lat, lon], {
+          areaCode: country
+        }).bindTooltip(`${icao}:${name}`);
+      });
+      L.areaCodeCluster(markers).addTo(map);
+    });
+  </script>
+</body>
+
+</html>
