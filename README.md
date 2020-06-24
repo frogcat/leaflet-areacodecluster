@@ -12,7 +12,7 @@ Over 28,000 ariports are clustered by [ISO3166-1 alpha2 country code](https://en
 
 ## [Post office in Japan](https://frogcat.github.io/leaflet-areacodecluster/example/post-office-in-japan.html)
 
-Over 24,000 post office in Japan area clustered by [dantai code](https://www.wikidata.org/wiki/Property:P429).
+Over 24,000 post office in Japan are clustered by [dantai code](https://www.wikidata.org/wiki/Property:P429).
 
 # Usage
 
@@ -72,6 +72,11 @@ Over 24,000 post office in Japan area clustered by [dantai code](https://www.wik
 
 </html>
 ```
+
+# Methods
+
+`L.AreaCodeCluster` extends `L.FeatureGroup`, but there are no additional methods.
+`addLayer`, `removeLayer` and `clearLayers` are supported and they should work for most uses.
 
 # Options
 

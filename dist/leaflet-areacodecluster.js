@@ -66,31 +66,46 @@
       clusterMarkerFactory: defaultClusterMarkerFactory,
       areaCodeModifier: defaultAreaCodeModifier
     },
-    initialize: function(markers, options) {
-      var this$1 = this;
-
-      L.Util.setOptions(this, options);
-      this._sourceCluster = {};
+    initialize: function(layers, options) {
+      this._markers = {};
       this._markersForCurrentZoom = [];
-      if (markers)
-        { markers.forEach(function (marker) {
-          this$1.addMarker(marker);
-        }); }
-      L.FeatureGroup.prototype.initialize.call(this, []);
+      L.FeatureGroup.prototype.initialize.call(this, layers, options);
     },
-    addMarker: function(marker) {
-      var areaCode = marker.options.areaCode;
-      var target = this._sourceCluster[areaCode] || (this._sourceCluster[areaCode] = []);
-      if (target.indexOf(marker) === -1) { target.push(marker); }
+    addLayer: function(layer) {
+      var areaCode = layer.options.areaCode;
+      if (areaCode) {
+        var target = this._markers[areaCode] || (this._markers[areaCode] = []);
+        if (target.indexOf(layer) !== -1) { return this; }
+        target.push(layer);
+        if (this._map) { this._onZoomEnd(); }
+        return this.fire('layeradd', {
+          layer: layer
+        });
+      }
+      return L.FeatureGroup.prototype.addLayer.call(this, layer);
     },
-    removeMarker: function(marker) {
-      var this$1 = this;
-
-      Object.keys(this._sourceCluster).forEach(function (areaCode) {
-        this$1._sourceCluster[areaCode] = this$1._sourceCluster[areaCode].filter(function (x) { return x !== marker; });
-      });
+    removeLayer: function(layer) {
+      var areaCode = layer.options.areaCode;
+      if (areaCode) {
+        var target = this._markers[areaCode];
+        if (target && target.find(function (x) { return x === layer; })) {
+          this._markers[areaCode] = target.filter(function (x) { return x !== layer; });
+          if (this._map) { this._onZoomEnd(); }
+          return this.fire('layerremove', {
+            layer: layer
+          });
+        }
+        return this;
+      }
+      return L.FeatureGroup.prototype.removeLayer.call(this, layer);
+    },
+    clearLayers: function() {
+      this._markers = {};
+      this._markersForCurrentZoom = [];
+      return L.FeatureGroup.prototype.clearLayers.call(this);
     },
     onAdd: function(map) {
+      L.FeatureGroup.prototype.onAdd.call(this, map);
       this._onZoomEnd();
     },
     getEvents: function() {
@@ -108,9 +123,11 @@
       var bounds = this._map.getBounds();
       this._markersForCurrentZoom.forEach(function (marker) {
         if (bounds.contains(marker.getLatLng())) {
-          if (!this$1.hasLayer(marker)) { this$1.addLayer(marker); }
+          if (!this$1.hasLayer(marker))
+            { L.FeatureGroup.prototype.addLayer.call(this$1, marker); }
         } else {
-          if (this$1.hasLayer(marker)) { this$1.removeLayer(marker); }
+          if (this$1.hasLayer(marker))
+            { L.FeatureGroup.prototype.removeLayer.call(this$1, marker); }
         }
       });
     },
@@ -122,24 +139,26 @@
 
       var zoom = this._map.getZoom();
 
-      this.clearLayers();
-      this._markersForCurrentZoom = [];
+      while (this._markersForCurrentZoom.length > 0) {
+        L.FeatureGroup.prototype.removeLayer.call(this, this._markersForCurrentZoom.pop());
+      }
 
-      var modifiedCluster = {};
-      Object.keys(this._sourceCluster).forEach(function (areaCode) {
-        var markers = this$1._sourceCluster[areaCode];
+      var cluster = {};
+      Object.keys(this._markers).forEach(function (areaCode) {
+        var markers = this$1._markers[areaCode];
         var key = this$1.options.areaCodeModifier(zoom, areaCode);
         if (key === null || key === false || key === undefined) {
           Array.prototype.push.apply(this$1._markersForCurrentZoom, markers);
         } else {
-          var target = modifiedCluster[key] || (modifiedCluster[key] = []);
+          var target = cluster[key] || (cluster[key] = []);
           Array.prototype.push.apply(target, markers);
         }
       });
 
-      Object.keys(modifiedCluster).forEach(function (areaCode) {
-        var markers = modifiedCluster[areaCode];
-        this$1._markersForCurrentZoom.push(this$1.options.clusterMarkerFactory(markers, areaCode));
+      Object.keys(cluster).forEach(function (areaCode) {
+        var markers = cluster[areaCode];
+        var clusterMarker = this$1.options.clusterMarkerFactory(markers, areaCode);
+        this$1._markersForCurrentZoom.push(clusterMarker);
       });
 
       this._onMoveEnd();
