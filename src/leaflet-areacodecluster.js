@@ -6,27 +6,46 @@ export default L.AreaCodeCluster = L.FeatureGroup.extend({
     clusterMarkerFactory: defaultClusterMarkerFactory,
     areaCodeModifier: defaultAreaCodeModifier
   },
-  initialize: function(markers, options) {
-    L.Util.setOptions(this, options);
-    this._sourceCluster = {};
+  initialize: function(layers, options) {
+    this._markers = {};
     this._markersForCurrentZoom = [];
-    if (markers)
-      markers.forEach(marker => {
-        this.addMarker(marker);
+    L.FeatureGroup.prototype.initialize.call(this, layers, options);
+  },
+  addLayer: function(layer) {
+    const areaCode = layer.options.areaCode;
+    if (areaCode) {
+      const target = this._markers[areaCode] || (this._markers[areaCode] = []);
+      if (target.indexOf(layer) !== -1) return this;
+      target.push(layer);
+      if (this._map) this._onZoomEnd();
+      return this.fire('layeradd', {
+        layer: layer
       });
-    L.FeatureGroup.prototype.initialize.call(this, []);
+    }
+    return L.FeatureGroup.prototype.addLayer.call(this, layer);
   },
-  addMarker: function(marker) {
-    const areaCode = marker.options.areaCode;
-    const target = this._sourceCluster[areaCode] || (this._sourceCluster[areaCode] = []);
-    if (target.indexOf(marker) === -1) target.push(marker);
+  removeLayer: function(layer) {
+    const areaCode = layer.options.areaCode;
+    if (areaCode) {
+      const target = this._markers[areaCode];
+      if (target && target.find(x => x === layer)) {
+        this._markers[areaCode] = target.filter(x => x !== layer);
+        if (this._map) this._onZoomEnd();
+        return this.fire('layerremove', {
+          layer: layer
+        });
+      }
+      return this;
+    }
+    return L.FeatureGroup.prototype.removeLayer.call(this, layer);
   },
-  removeMarker: function(marker) {
-    Object.keys(this._sourceCluster).forEach(areaCode => {
-      this._sourceCluster[areaCode] = this._sourceCluster[areaCode].filter(x => x !== marker);
-    });
+  clearLayers: function() {
+    this._markers = {};
+    this._markersForCurrentZoom = [];
+    return L.FeatureGroup.prototype.clearLayers.call(this);
   },
   onAdd: function(map) {
+    L.FeatureGroup.prototype.onAdd.call(this, map);
     this._onZoomEnd();
   },
   getEvents: function() {
@@ -42,9 +61,11 @@ export default L.AreaCodeCluster = L.FeatureGroup.extend({
     const bounds = this._map.getBounds();
     this._markersForCurrentZoom.forEach(marker => {
       if (bounds.contains(marker.getLatLng())) {
-        if (!this.hasLayer(marker)) this.addLayer(marker);
+        if (!this.hasLayer(marker))
+          L.FeatureGroup.prototype.addLayer.call(this, marker);
       } else {
-        if (this.hasLayer(marker)) this.removeLayer(marker);
+        if (this.hasLayer(marker))
+          L.FeatureGroup.prototype.removeLayer.call(this, marker);
       }
     });
   },
@@ -54,24 +75,26 @@ export default L.AreaCodeCluster = L.FeatureGroup.extend({
 
     const zoom = this._map.getZoom();
 
-    this.clearLayers();
-    this._markersForCurrentZoom = [];
+    while (this._markersForCurrentZoom.length > 0) {
+      L.FeatureGroup.prototype.removeLayer.call(this, this._markersForCurrentZoom.pop());
+    }
 
-    const modifiedCluster = {};
-    Object.keys(this._sourceCluster).forEach(areaCode => {
-      const markers = this._sourceCluster[areaCode];
+    const cluster = {};
+    Object.keys(this._markers).forEach(areaCode => {
+      const markers = this._markers[areaCode];
       const key = this.options.areaCodeModifier(zoom, areaCode);
       if (key === null || key === false || key === undefined) {
         Array.prototype.push.apply(this._markersForCurrentZoom, markers);
       } else {
-        const target = modifiedCluster[key] || (modifiedCluster[key] = []);
+        const target = cluster[key] || (cluster[key] = []);
         Array.prototype.push.apply(target, markers);
       }
     });
 
-    Object.keys(modifiedCluster).forEach(areaCode => {
-      const markers = modifiedCluster[areaCode];
-      this._markersForCurrentZoom.push(this.options.clusterMarkerFactory(markers, areaCode));
+    Object.keys(cluster).forEach(areaCode => {
+      const markers = cluster[areaCode];
+      const clusterMarker = this.options.clusterMarkerFactory(markers, areaCode);
+      this._markersForCurrentZoom.push(clusterMarker)
     });
 
     this._onMoveEnd();
