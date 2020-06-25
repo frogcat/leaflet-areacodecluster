@@ -25,9 +25,11 @@ Over 24,000 post office in Japan are clustered by [dantai code](https://www.wiki
   <title>Airports clustered by country</title>
   <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+
   <!-- include leaflet-areacodecluster.default.css (optional)-->
   <link rel="stylesheet" href="https://frogcat.github.io/leaflet-areacodecluster/dist/leaflet-areacodecluster.default.css" />
   <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+
   <!-- include leaflet-areacodecluster(.min).js (required) -->
   <script src="https://frogcat.github.io/leaflet-areacodecluster/dist/leaflet-areacodecluster.min.js"></script>
 </head>
@@ -73,18 +75,25 @@ Over 24,000 post office in Japan are clustered by [dantai code](https://www.wiki
 </html>
 ```
 
-# Methods
+## Creation
 
-`L.AreaCodeCluster` extends `L.LayerGroup`.
-There are no additional methods.
-`addLayer`, `removeLayer` and `clearLayers` are supported and they should work for most uses.
+Factory                                                 | Description
+------------------------------------------------------- | -----------------------------------
+L.areaCodeCluster(<Layer[]> layers?, <Object> options?) | Create a areaCodeCluster, optionally given an initial set of layers and an options object. Layers must have `areaCode` option.
 
-# Options
 
-## areaCodeModifier
+## Options
+
+Option               | Type     | Default  | Description
+-------------------- | -------- | -------- | -----------------
+areaCodeModifier     | Function | *        | A Function that will be called when zoom level changes. Function takes two arguments, `zoom` and `areaCode`. When this function returns `false` or `null`, markers with given `areaCode` will be added to map directly. When this function returns `string`, markers are clustered with returned string.
+clusterMarkerFactory | Function | *        | A Function to create cluster marker. Function takes two arguments, `layers` and `modifiedAreaCode`. Typically, it returns instance of L.Marker with customized icon and interaction.
+
+
+### areaCodeModifier
 
 ```js
-L.areaCodeCluster(markers,{
+L.areaCodeCluster(layers, {
   areaCodeModifier : function(zoom,areaCode){
     if (zoom <= 4) return "";
     if (zoom <= 8) return areaCode.substring(0, 2);
@@ -92,7 +101,6 @@ L.areaCodeCluster(markers,{
     return null;
   }
 }).addTo(map);
-
 ```
 
 - zoom=0~4 : markers are clustered by modified areaCode (""), so there will be single cluster.
@@ -100,23 +108,29 @@ L.areaCodeCluster(markers,{
 - zoom=8~12 : markers area clustered by modified areaCode (leading five digit),
 - zoom>12 : when modified areaCode is null, marker is not clustered.
 
-to be added
+See <src/default-areacode-modifier.js> for default .
 
-## clusterMarkerFactory
+### clusterMarkerFactory
 
 ```js
-L.areaCodeCluster(markers,{
-  clusterMarkerFactory : function(markers,modifiedAreaCode){
-    const bounds = L.latLngBounds(markers.map(m=>m.getLatLng()));
+L.areaCodeCluster(layers, {
+  clusterMarkerFactory : function(layers,modifiedAreaCode){
+    const bounds = L.latLngBounds(layers.map(m=>m.getLatLng()));
     const marker = L.marker(bounds.getCenter(),{
       icon: L.divIcon({
-        html: `<span>${markers.length}</span>`,
+        html: "<span>"+layers.length+"</span>",
       }
     });
     return marker;
   }
 }).addTo(map);
-
 ```
 
-to be added
+See <src/default-cluster-marker-factory.js> for default .
+
+## Methods
+
+Method                     | Returns  | Description
+-------------------------- | -------- | ---------------------------
+addLayer(<Layer> layer)    | this     | Adds the given layer to the group
+removeLayer(<Layer> layer) | this     | Rmove the given layer from the group

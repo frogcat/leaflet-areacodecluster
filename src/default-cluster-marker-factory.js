@@ -1,7 +1,7 @@
-export default function(markers, areaCode) {
+export default function(layers, areaCode) {
 
-  const length = markers.length;
-  const points = markers.map(marker => marker.getLatLng());
+  const length = layers.length;
+  const points = layers.map(layer => layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
   const center = points.reduce((a, c) => L.latLng(a.lat + c.lat / length, a.lng + c.lng / length), L.latLng(0, 0));
   const bounds = L.latLngBounds(points);
 
