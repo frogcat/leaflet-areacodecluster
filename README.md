@@ -77,18 +77,27 @@ Over 24,000 post office in Japan are clustered by [dantai code](https://www.wiki
 
 ## Creation
 
-Factory                                                 | Description
-------------------------------------------------------- | -----------------------------------
-L.areaCodeCluster(<Layer[]> layers?, <Object> options?) | Create a areaCodeCluster, optionally given an initial set of layers and an options object. Layers must have `areaCode` option.
+Factory                                                   | Description
+--------------------------------------------------------- | -----------------------------------
+`L.areaCodeCluster(<Layer[]> layers?, <Object> options?)` | Create a areaCodeCluster, optionally given an initial set of layers and an options object. Layers must have `areaCode` option.
 
 
 ## Options
 
 Option               | Type     | Default  | Description
 -------------------- | -------- | -------- | -----------------
-areaCodeModifier     | Function | *        | A Function that will be called when zoom level changes. Function takes two arguments, `zoom` and `areaCode`. When this function returns `false` or `null`, markers with given `areaCode` will be added to map directly. When this function returns `string`, markers are clustered with returned string.
-clusterMarkerFactory | Function | *        | A Function to create cluster marker. Function takes two arguments, `layers` and `modifiedAreaCode`. Typically, it returns instance of L.Marker with customized icon and interaction.
+`areaCodeModifier`     | Function | [default-areacode-modifier](https://github.com/frogcat/leaflet-areacodecluster/blob/master/src/default-areacode-modifier.js) | A Function that will be called when zoom level changes. Function takes two arguments, `zoom` and `areaCode`. When this function returns `false` or `null`, markers with given `areaCode` will be added to map directly. When this function returns `string`, markers are clustered with returned string.
+`clusterMarkerFactory` | Function | [default-cluster-marker-factory](https://github.com/frogcat/leaflet-areacodecluster/blob/master/src/default-cluster-marker-factory.js) | A Function to create cluster marker. Function takes two arguments, `layers` and `modifiedAreaCode`. Typically, it returns instance of L.Marker with customized icon and interaction.
 
+
+## Methods
+
+Method                       | Returns  | Description
+---------------------------- | -------- | ---------------------------
+`addLayer(<Layer> layer)`    | this     | Adds the given layer to the group
+`removeLayer(<Layer> layer)` | this     | Rmove the given layer from the group
+
+## Examples
 
 ### areaCodeModifier
 
@@ -108,8 +117,6 @@ L.areaCodeCluster(layers, {
 - zoom=8~12 : markers area clustered by modified areaCode (leading five digit),
 - zoom>12 : when modified areaCode is null, marker is not clustered.
 
-See <src/default-areacode-modifier.js> for default .
-
 ### clusterMarkerFactory
 
 ```js
@@ -125,12 +132,3 @@ L.areaCodeCluster(layers, {
   }
 }).addTo(map);
 ```
-
-See <src/default-cluster-marker-factory.js> for default .
-
-## Methods
-
-Method                     | Returns  | Description
--------------------------- | -------- | ---------------------------
-addLayer(<Layer> layer)    | this     | Adds the given layer to the group
-removeLayer(<Layer> layer) | this     | Rmove the given layer from the group
