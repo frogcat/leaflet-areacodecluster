@@ -1,10 +1,10 @@
 (function () {
   'use strict';
 
-  function defaultClusterMarkerFactory(markers, areaCode) {
+  function defaultClusterMarkerFactory(layers, areaCode) {
 
-    var length = markers.length;
-    var points = markers.map(function (marker) { return marker.getLatLng(); });
+    var length = layers.length;
+    var points = layers.map(function (layer) { return layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter(); });
     var center = points.reduce(function (a, c) { return L.latLng(a.lat + c.lat / length, a.lng + c.lng / length); }, L.latLng(0, 0));
     var bounds = L.latLngBounds(points);
 
@@ -61,47 +61,43 @@
     return null;
   }
 
-  L.AreaCodeCluster = L.LayerGroup.extend({
+  L.AreaCodeCluster = L.Layer.extend({
     options: {
       clusterMarkerFactory: defaultClusterMarkerFactory,
       areaCodeModifier: defaultAreaCodeModifier
     },
     initialize: function(layers, options) {
-      this._markers = {};
-      this._markersForCurrentZoom = [];
-      L.LayerGroup.prototype.initialize.call(this, layers, options);
+      var this$1 = this;
+
+      L.Util.setOptions(this, options);
+      this._source = {};
+      this._layers = [];
+      layers.forEach(function (layer) {
+        this$1.addLayer(layer);
+      });
     },
     addLayer: function(layer) {
       var areaCode = layer.options.areaCode;
-      if (areaCode) {
-        var target = this._markers[areaCode] || (this._markers[areaCode] = []);
-        if (target.indexOf(layer) !== -1) { return this; }
-        target.push(layer);
-        if (this._map) { this._onZoomEnd(); }
-        return this;
+      if (areaCode && (layer.getLatLng || layer.getBounds)) {
+        var target = this._source[areaCode] || (this._source[areaCode] = []);
+        if (target.indexOf(layer) === -1) {
+          target.push(layer);
+          if (this._map) { this._onZoomEnd(); }
+        }
       }
-      return L.LayerGroup.prototype.addLayer.call(this, layer);
+      return this;
     },
     removeLayer: function(layer) {
-      var this$1 = this;
-
-      Object.values(this._markers).forEach(function (target) {
+      var count = 0;
+      Object.values(this._source).forEach(function (target) {
         var index = target.indexOf(layer);
         if (index !== -1) {
           target.splice(index, 1);
-          this$1._onZoomEnd();
+          count++;
         }
       });
-      return L.LayerGroup.prototype.removeLayer.call(this, layer);
-    },
-    clearLayers: function() {
-      this._markers = {};
-      this._markersForCurrentZoom = [];
-      return L.LayerGroup.prototype.clearLayers.call(this);
-    },
-    onAdd: function(map) {
-      L.LayerGroup.prototype.onAdd.call(this, map);
-      this._onZoomEnd();
+      if (this._map && count > 0) { this._onZoomEnd(); }
+      return this;
     },
     getEvents: function() {
       return {
@@ -111,18 +107,25 @@
         zoomlevelschange: this._onZoomEnd
       };
     },
+    onAdd: function(map) {
+      this._onZoomEnd();
+    },
+    onRemove: function(map) {
+      this._layers.forEach(function (layer) {
+        if (map.hasLayer(layer)) { map.removeLayer(layer); }
+      });
+      this._layers = [];
+    },
     _onMoveEnd: function() {
-      var this$1 = this;
-
       if (!this._map) { return; }
-      var bounds = this._map.getBounds();
-      this._markersForCurrentZoom.forEach(function (marker) {
-        if (bounds.contains(marker.getLatLng())) {
-          if (!this$1.hasLayer(marker))
-            { L.LayerGroup.prototype.addLayer.call(this$1, marker); }
+      var map = this._map;
+      var bounds = map.getBounds();
+      this._layers.forEach(function (layer) {
+        var flag = layer.getLatLng ? bounds.contains(layer.getLatLng()) : bounds.intersects(layer.getBounds());
+        if (flag) {
+          if (!map.hasLayer(layer)) { map.addLayer(layer); }
         } else {
-          if (this$1.hasLayer(marker))
-            { L.LayerGroup.prototype.removeLayer.call(this$1, marker); }
+          if (map.hasLayer(layer)) { map.removeLayer(layer); }
         }
       });
     },
@@ -132,30 +135,36 @@
 
       if (!this._map) { return; }
 
+      var map = this._map;
       var zoom = this._map.getZoom();
 
-      while (this._markersForCurrentZoom.length > 0) {
-        L.LayerGroup.prototype.removeLayer.call(this, this._markersForCurrentZoom.pop());
-      }
-
+      var prev = this._layers;
+      var next = [];
       var cluster = {};
-      Object.keys(this._markers).forEach(function (areaCode) {
-        var markers = this$1._markers[areaCode];
-        var key = this$1.options.areaCodeModifier(zoom, areaCode);
-        if (key === null || key === false || key === undefined) {
-          Array.prototype.push.apply(this$1._markersForCurrentZoom, markers);
+
+      Object.keys(this._source).forEach(function (areaCode) {
+        var layers = this$1._source[areaCode];
+        var modified = this$1.options.areaCodeModifier(zoom, areaCode);
+        if (modified === null || modified === false || modified === undefined) {
+          Array.prototype.push.apply(next, layers);
         } else {
-          var target = cluster[key] || (cluster[key] = []);
-          Array.prototype.push.apply(target, markers);
+          var target = cluster[modified] || (cluster[modified] = []);
+          Array.prototype.push.apply(target, layers);
         }
       });
 
-      Object.keys(cluster).forEach(function (areaCode) {
-        var markers = cluster[areaCode];
-        var clusterMarker = this$1.options.clusterMarkerFactory(markers, areaCode);
-        this$1._markersForCurrentZoom.push(clusterMarker);
+      prev.forEach(function (layer) {
+        if (map.hasLayer(layer) && next.indexOf(layer) === -1)
+          { map.removeLayer(layer); }
       });
 
+      Object.keys(cluster).forEach(function (areaCode) {
+        var layers = cluster[areaCode];
+        var clusterMarker = this$1.options.clusterMarkerFactory(layers, areaCode);
+        next.push(clusterMarker);
+      });
+
+      this._layers = next;
       this._onMoveEnd();
     }
   });
