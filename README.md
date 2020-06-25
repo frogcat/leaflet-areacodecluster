@@ -75,7 +75,8 @@ Over 24,000 post office in Japan are clustered by [dantai code](https://www.wiki
 
 # Methods
 
-`L.AreaCodeCluster` extends `L.FeatureGroup`, but there are no additional methods.
+`L.AreaCodeCluster` extends `L.LayerGroup`.
+There are no additional methods.
 `addLayer`, `removeLayer` and `clearLayers` are supported and they should work for most uses.
 
 # Options
