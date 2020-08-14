@@ -95,7 +95,7 @@ Option               | Type     | Default  | Description
 Method                       | Returns  | Description
 ---------------------------- | -------- | ---------------------------
 `addLayer(<Layer> layer)`    | this     | Adds the given layer to the group
-`removeLayer(<Layer> layer)` | this     | Rmove the given layer from the group
+`removeLayer(<Layer> layer)` | this     | Removes the given layer from the group
 
 ## Examples
 
